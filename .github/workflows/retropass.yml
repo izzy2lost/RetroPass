@@ -3,7 +3,16 @@ name: RetroPass Build
 # Controls when the workflow will run
 on:
   workflow_dispatch:
-      
+    inputs:
+      tag_name:
+        description: 'Tag Name'
+        required: true
+        default: 'v1.0.0'
+      package_name:
+        description: 'Package Name'
+        required: true
+        default: 'RetroPass'
+
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
@@ -21,7 +30,6 @@ jobs:
       ProjectDirectory: .\RetroPass
       PackageOutputRootDir: C:\AppPackage
       PackageOutputDir: RetroPass
-      PackageOutputBaseName: RetroPass
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:            
@@ -35,20 +43,6 @@ jobs:
       - name: checkout
         uses: actions/checkout@v2
         
-      # Get tag name so a proper package name can be generated
-      - name: Get tag
-        id: getTag
-        # You may pin to the exact commit or the version.
-        uses: dawidd6/action-get-tag@v1.1.0
-      
-      # Create package name
-      - name: GetPackageName
-        id: getPackageName
-        run: |
-          $PackageName = "${{ env.PackageOutputBaseName }}" + "_" + "${{ steps.getTag.outputs.tag }}"          
-          echo "::set-output name=PackageName::$PackageName"
-          Write-Host "Package Name is $PackageName"
-               
       # Generate Self-Signed Certificate
       - name: Generate Self-Signed Certificate
         id: cert
@@ -67,13 +61,13 @@ jobs:
             /p:UapAppxPackageBuildMode=$env:BuildMode `
             /p:AppxBundle=$env:AppxBundle `
             /p:PackageCertificateThumbprint="$env:THUMBPRINT" `
-            /p:AppxPackageTestDir="${{ env.PackageOutputRootDir }}\${{ steps.getPackageName.outputs.PackageName }}" `
+            /p:AppxPackageTestDir="${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}" `
             /restore
 
       # Clean the package
       - name: Clean package
         run: | 
-          $PackagePath = "${{ env.PackageOutputRootDir }}\${{ steps.getPackageName.outputs.PackageName }}"
+          $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
           Remove-Item -Recurse -path $PackagePath/Add-AppDevPackage.resources
           Remove-Item -Recurse -path $PackagePath/TelemetryDependencies
           Remove-Item -Recurse -path $PackagePath/Dependencies/arm
@@ -85,7 +79,7 @@ jobs:
       # Archive the package
       - name: Create archive
         run: |
-          $PackagePath = "${{ env.PackageOutputRootDir }}\${{ steps.getPackageName.outputs.PackageName }}"
+          $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
           Compress-Archive -Path $PackagePath\* -DestinationPath "$PackagePath.zip"
           dir "${{ env.PackageOutputRootDir }}"
        
@@ -93,5 +87,5 @@ jobs:
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RetroPass Build
-          path: ${{ env.PackageOutputRootDir }}\${{ steps.getPackageName.outputs.PackageName }}.zip
+          name: ${{ github.event.inputs.package_name }} Build
+          path: ${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}.zip
