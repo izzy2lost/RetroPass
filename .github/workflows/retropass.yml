@@ -52,6 +52,12 @@ jobs:
           echo "THUMBPRINT=$thumbprint" >> $GITHUB_ENV
           Write-Host "Certificate Thumbprint: $thumbprint"
         shell: pwsh
+
+      # List all certificates
+      - name: List all certificates
+        run: |
+          Get-ChildItem -Path Cert:\CurrentUser\My | ForEach-Object { Write-Host "Thumbprint: $($_.Thumbprint), Subject: $($_.Subject)" }
+        shell: pwsh
       
       # Verify Certificate
       - name: Verify Certificate
