@@ -31,13 +31,13 @@ jobs:
 
     steps:            
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v1.1
         
       - name: Setup NuGet.exe for use with actions
-        uses: NuGet/setup-nuget@v1.0.5
+        uses: NuGet/setup-nuget@v1.1.1
         
-      - name: checkout
-        uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
       - name: Generate Self-Signed Certificate
         id: generate_cert
@@ -51,7 +51,7 @@ jobs:
         run: |
           echo "PACKAGE_NAME=${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}" >> $GITHUB_ENV
 
-      - name: App build
+      - name: App Build
         run: |
           msbuild $env:SolutionPath `
             /p:Platform=$env:Platform `
@@ -63,7 +63,13 @@ jobs:
             /restore
         shell: pwsh
 
-      - name: Clean the package
+      - name: Check Directory Structure
+        run: |
+          Write-Host "Directory structure after build:"
+          Get-ChildItem -Path $env:PackageOutputRootDir -Recurse
+        shell: pwsh
+
+      - name: Clean the Package
         run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}"
           if (Test-Path $PackagePath) {
@@ -82,12 +88,12 @@ jobs:
           }
         shell: pwsh
           
-      - name: Create archive
+      - name: Create Archive
         run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}"
           if (Test-Path $PackagePath) {
             Write-Host "Creating archive for: $PackagePath"
-            Compress-Archive -Path "$PackagePath\*" -DestinationPath "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip"
+            Compress-Archive -Path "$PackagePath\*" -DestinationPath "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip" -Force
             Write-Host "Contents of package output directory after archiving:"
             Get-ChildItem -Path "${{ env.PackageOutputRootDir }}" -Recurse
           } else {
@@ -97,7 +103,7 @@ jobs:
         shell: pwsh
        
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ github.event.inputs.package_name }} Build
           path: ${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip
