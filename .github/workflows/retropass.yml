@@ -62,6 +62,7 @@ jobs:
       # Verify Certificate
       - name: Verify Certificate
         run: |
+          Write-Host "Thumbprint from environment: $env:THUMBPRINT"
           $cert = Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq "$env:THUMBPRINT" }
           if ($null -eq $cert) {
             Write-Error "Certificate not found."
