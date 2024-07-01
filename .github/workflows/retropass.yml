@@ -47,16 +47,14 @@ jobs:
       - name: Generate Self-Signed Certificate
         id: generate_cert
         run: |
-          $cert = New-SelfSignedCertificate -CertStoreLocation "Cert:\CurrentUser\My" -Subject "CN=MyUWPCert" -KeyAlgorithm RSA -KeyLength 2048 -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(1)
-          echo "::set-output name=THUMBPRINT::$($cert.Thumbprint)"
-          Write-Host "Certificate Thumbprint: $($cert.Thumbprint)"
+          $cert = New-SelfSignedCertificate -CertStoreLocation "Cert:\CurrentUser\My" -Subject "CN=MyUWPCert" -KeyAlgorithm RSA -KeyLength 2048 -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(1) -Type CodeSigningCert
+          echo "THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
         shell: pwsh
       
       # Verify Certificate
       - name: Verify Certificate
         run: |
-          $thumbprint = "${{ steps.generate_cert.outputs.THUMBPRINT }}"
-          Write-Host "Thumbprint from environment: $thumbprint"
+          $thumbprint = "${{ env.THUMBPRINT }}"
           $cert = Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq $thumbprint }
           if ($null -eq $cert) {
             Write-Error "Certificate not found."
@@ -74,7 +72,7 @@ jobs:
             /p:Configuration=$env:Configuration `
             /p:UapAppxPackageBuildMode=$env:BuildMode `
             /p:AppxBundle=$env:AppxBundle `
-            /p:PackageCertificateThumbprint="${{ steps.generate_cert.outputs.THUMBPRINT }}" `
+            /p:PackageCertificateThumbprint="${{ env.THUMBPRINT }}" `
             /p:AppxPackageTestDir="${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}" `
             /restore
         shell: pwsh
