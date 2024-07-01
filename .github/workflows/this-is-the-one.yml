@@ -1,4 +1,4 @@
-name: RetroPass Build Final
+name: RetroPass Build 
 
 # Controls when the workflow will run
 on:
@@ -79,7 +79,7 @@ jobs:
             Remove-Item -Recurse -path "$PackagePath\Dependencies\arm" -ErrorAction SilentlyContinue
             Remove-Item -Recurse -path "$PackagePath\Dependencies\arm64" -ErrorAction SilentlyContinue
             Remove-Item -Recurse -path "$PackagePath\Dependencies\x86" -ErrorAction SilentlyContinue
-            Remove-Item -Recurse -path "$PackagePath\Dependencies\x64" -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path "$PackagePath\Dependencies\Win32" -ErrorAction SilentlyContinue
             Remove-Item -path "$PackagePath\Add-AppDevPackage.ps1" -ErrorAction SilentlyContinue
             Remove-Item -Recurse -path "$PackagePath\Install.ps1" -ErrorAction SilentlyContinue
           } else {
