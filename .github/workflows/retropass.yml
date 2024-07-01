@@ -15,9 +15,7 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: windows-latest
     
     env:
@@ -31,7 +29,6 @@ jobs:
       PackageOutputRootDir: C:\AppPackage
       PackageOutputDir: RetroPass
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:            
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1
@@ -39,11 +36,9 @@ jobs:
       - name: Setup NuGet.exe for use with actions
         uses: NuGet/setup-nuget@v1.0.5
         
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: checkout
         uses: actions/checkout@v2
         
-      # Generate Self-Signed Certificate
       - name: Generate Self-Signed Certificate
         id: generate_cert
         run: |
@@ -51,7 +46,6 @@ jobs:
           echo "THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
         shell: pwsh
       
-      # Build app
       - name: App build
         run: |
           msbuild $env:SolutionPath `
@@ -64,41 +58,44 @@ jobs:
             /restore
         shell: pwsh
 
-      # Debug Paths
-      - name: Debug Paths
+      - name: Check directory structure
         run: |
-          Write-Host "Checking contents of package directory:"
-          Get-ChildItem -Path "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}" -Recurse
+          Write-Host "Directory structure after build:"
+          Get-ChildItem -Path $env:PackageOutputRootDir -Recurse
         shell: pwsh
 
-      # Clean the package
-      - name: Clean package
-        run: | 
+      - name: Clean the package
+        run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
           if (Test-Path $PackagePath) {
-            Remove-Item -Recurse -path $PackagePath/Add-AppDevPackage.resources
-            Remove-Item -Recurse -path $PackagePath/TelemetryDependencies
-            Remove-Item -Recurse -path $PackagePath/Dependencies/arm
-            Remove-Item -Recurse -path $PackagePath/Dependencies/arm64
-            Remove-Item -Recurse -path $PackagePath/Dependencies/x86
-            Remove-Item -path $PackagePath/Add-AppDevPackage.ps1
-            Remove-Item -Recurse -path $PackagePath/Install.ps1
+            Write-Host "Cleaning package directory: $PackagePath"
+            Remove-Item -Recurse -path $PackagePath/Add-AppDevPackage.resources -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path $PackagePath/TelemetryDependencies -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path $PackagePath/Dependencies/arm -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path $PackagePath/Dependencies/arm64 -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path $PackagePath/Dependencies/x86 -ErrorAction SilentlyContinue
+            Remove-Item -path $PackagePath/Add-AppDevPackage.ps1 -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path $PackagePath/Install.ps1 -ErrorAction SilentlyContinue
           } else {
             Write-Host "Package path does not exist: $PackagePath"
             exit 1
           }
         shell: pwsh
           
-      # Archive the package
       - name: Create archive
         run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
-          Compress-Archive -Path "$PackagePath\*" -DestinationPath "$PackagePath.zip"
-          Write-Host "Contents of package output directory:"
-          Get-ChildItem -Path "${{ env.PackageOutputRootDir }}"
+          if (Test-Path $PackagePath) {
+            Write-Host "Creating archive for: $PackagePath"
+            Compress-Archive -Path "$PackagePath\*" -DestinationPath "$PackagePath.zip"
+            Write-Host "Contents of package output directory after archiving:"
+            Get-ChildItem -Path "${{ env.PackageOutputRootDir }}" -Recurse
+          } else {
+            Write-Host "Package path does not exist for archiving: $PackagePath"
+            exit 1
+          }
         shell: pwsh
        
-      # Upload the artifact
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
