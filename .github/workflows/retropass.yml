@@ -50,7 +50,7 @@ jobs:
           $cert = New-SelfSignedCertificate -CertStoreLocation "Cert:\CurrentUser\My" -Subject "CN=MyUWPCert" -KeyAlgorithm RSA -KeyLength 2048 -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(1) -Type CodeSigningCert
           echo "THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
         shell: pwsh
-
+      
       # Build app
       - name: App build
         run: |
@@ -63,13 +63,39 @@ jobs:
             /p:AppxPackageTestDir="${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}" `
             /restore
         shell: pwsh
+
+      # Debug Paths
+      - name: Debug Paths
+        run: |
+          Write-Host "Checking contents of package directory:"
+          Get-ChildItem -Path "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}" -Recurse
+        shell: pwsh
+
+      # Clean the package
+      - name: Clean package
+        run: | 
+          $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
+          if (Test-Path $PackagePath) {
+            Remove-Item -Recurse -path $PackagePath/Add-AppDevPackage.resources
+            Remove-Item -Recurse -path $PackagePath/TelemetryDependencies
+            Remove-Item -Recurse -path $PackagePath/Dependencies/arm
+            Remove-Item -Recurse -path $PackagePath/Dependencies/arm64
+            Remove-Item -Recurse -path $PackagePath/Dependencies/x86
+            Remove-Item -path $PackagePath/Add-AppDevPackage.ps1
+            Remove-Item -Recurse -path $PackagePath/Install.ps1
+          } else {
+            Write-Host "Package path does not exist: $PackagePath"
+            exit 1
+          }
+        shell: pwsh
           
       # Archive the package
       - name: Create archive
         run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
-          Compress-Archive -Path $PackagePath\* -DestinationPath "$PackagePath.zip"
-          dir "${{ env.PackageOutputRootDir }}"
+          Compress-Archive -Path "$PackagePath\*" -DestinationPath "$PackagePath.zip"
+          Write-Host "Contents of package output directory:"
+          Get-ChildItem -Path "${{ env.PackageOutputRootDir }}"
         shell: pwsh
        
       # Upload the artifact
