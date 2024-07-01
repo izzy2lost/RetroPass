@@ -63,12 +63,6 @@ jobs:
             /restore
         shell: pwsh
 
-      - name: Check Directory Structure
-        run: |
-          Write-Host "Directory structure after build:"
-          Get-ChildItem -Path $env:PackageOutputRootDir -Recurse
-        shell: pwsh
-
       - name: Clean the Package
         run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}"
@@ -87,13 +81,17 @@ jobs:
             exit 1
           }
         shell: pwsh
-          
+
       - name: Create Archive
         run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}"
           if (Test-Path $PackagePath) {
             Write-Host "Creating archive for: $PackagePath"
-            Compress-Archive -Path "$PackagePath\*" -DestinationPath "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip" -Force
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            function Compress-Directory($source, $destination) {
+              [System.IO.Compression.ZipFile]::CreateFromDirectory($source, $destination)
+            }
+            Compress-Directory $PackagePath "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip"
             Write-Host "Contents of package output directory after archiving:"
             Get-ChildItem -Path "${{ env.PackageOutputRootDir }}" -Recurse
           } else {
