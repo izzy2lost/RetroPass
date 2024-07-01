@@ -1,0 +1,104 @@
+name: RetroPass Build 
+
+# Controls when the workflow will run
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag Name'
+        required: true
+        default: 'v1.0.0'
+      package_name:
+        description: 'Package Name'
+        required: true
+        default: 'RetroPass'
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    env:
+      SolutionPath: RetroPass.sln
+      Platform: x64
+      Configuration: Release
+      BuildMode: SideLoadOnly
+      AppxBundle: Never      
+      ProjectPath: RetroPass\RetroPass.csproj
+      ProjectDirectory: .\RetroPass
+      PackageOutputRootDir: C:\AppPackage
+      PackageOutputDir: RetroPass
+
+    steps:            
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1
+        
+      - name: Setup NuGet.exe for use with actions
+        uses: NuGet/setup-nuget@v1.0.5
+        
+      - name: checkout
+        uses: actions/checkout@v2
+        
+      - name: Generate Self-Signed Certificate
+        id: generate_cert
+        run: |
+          $cert = New-SelfSignedCertificate -CertStoreLocation "Cert:\CurrentUser\My" -Subject "CN=MyUWPCert" -KeyAlgorithm RSA -KeyLength 2048 -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(1) -Type CodeSigningCert
+          echo "THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+        shell: pwsh
+      
+      - name: App build
+        run: |
+          msbuild $env:SolutionPath `
+            /p:Platform=$env:Platform `
+            /p:Configuration=$env:Configuration `
+            /p:UapAppxPackageBuildMode=$env:BuildMode `
+            /p:AppxBundle=$env:AppxBundle `
+            /p:PackageCertificateThumbprint="${{ env.THUMBPRINT }}" `
+            /p:AppxPackageTestDir="${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}" `
+            /restore
+        shell: pwsh
+
+      - name: Check directory structure
+        run: |
+          Write-Host "Directory structure after build:"
+          Get-ChildItem -Path $env:PackageOutputRootDir -Recurse
+        shell: pwsh
+
+      - name: Clean the package
+        run: |
+          $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
+          if (Test-Path $PackagePath) {
+            Write-Host "Cleaning package directory: $PackagePath"
+            Remove-Item -Recurse -path "$PackagePath\Add-AppDevPackage.resources" -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path "$PackagePath\TelemetryDependencies" -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path "$PackagePath\Dependencies\arm" -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path "$PackagePath\Dependencies\arm64" -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path "$PackagePath\Dependencies\x86" -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path "$PackagePath\Dependencies\x64" -ErrorAction SilentlyContinue
+            Remove-Item -path "$PackagePath\Add-AppDevPackage.ps1" -ErrorAction SilentlyContinue
+            Remove-Item -Recurse -path "$PackagePath\Install.ps1" -ErrorAction SilentlyContinue
+          } else {
+            Write-Host "Package path does not exist: $PackagePath"
+            exit 1
+          }
+        shell: pwsh
+          
+      - name: Create archive
+        run: |
+          $PackagePath = "${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}"
+          if (Test-Path $PackagePath) {
+            Write-Host "Creating archive for: $PackagePath"
+            Compress-Archive -Path "$PackagePath\*" -DestinationPath "$PackagePath.zip"
+            Write-Host "Contents of package output directory after archiving:"
+            Get-ChildItem -Path "${{ env.PackageOutputRootDir }}" -Recurse
+          } else {
+            Write-Host "Package path does not exist for archiving: $PackagePath"
+            exit 1
+          }
+        shell: pwsh
+       
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.package_name }} Build
+          path: ${{ env.PackageOutputRootDir }}\${{ github.event.inputs.package_name }}_${{ github.event.inputs.tag_name }}.zip
