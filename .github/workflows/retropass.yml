@@ -50,8 +50,21 @@ jobs:
           $cert = New-SelfSignedCertificate -CertStoreLocation "Cert:\CurrentUser\My" -Subject "CN=MyUWPCert" -KeyAlgorithm RSA -KeyLength 2048 -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -KeyExportPolicy Exportable -NotAfter (Get-Date).AddYears(1)
           $thumbprint = $cert.Thumbprint
           echo "THUMBPRINT=$thumbprint" >> $GITHUB_ENV
+          Write-Host "Certificate Thumbprint: $thumbprint"
         shell: pwsh
       
+      # Verify Certificate
+      - name: Verify Certificate
+        run: |
+          $cert = Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq "$env:THUMBPRINT" }
+          if ($null -eq $cert) {
+            Write-Error "Certificate not found."
+            exit 1
+          } else {
+            Write-Host "Certificate found: $($cert.Subject)"
+          }
+        shell: pwsh
+
       # Build app
       - name: App build
         run: |
