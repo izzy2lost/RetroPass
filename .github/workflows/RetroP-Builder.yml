@@ -81,17 +81,13 @@ jobs:
             exit 1
           }
         shell: pwsh
-
+          
       - name: Create Archive
         run: |
           $PackagePath = "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}"
           if (Test-Path $PackagePath) {
             Write-Host "Creating archive for: $PackagePath"
-            Add-Type -AssemblyName System.IO.Compression.FileSystem
-            function Compress-Directory($source, $destination) {
-              [System.IO.Compression.ZipFile]::CreateFromDirectory($source, $destination)
-            }
-            Compress-Directory $PackagePath "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip"
+            Compress-Archive -Path "$PackagePath\*" -DestinationPath "${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip"
             Write-Host "Contents of package output directory after archiving:"
             Get-ChildItem -Path "${{ env.PackageOutputRootDir }}" -Recurse
           } else {
