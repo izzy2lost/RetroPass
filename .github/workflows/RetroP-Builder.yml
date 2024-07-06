@@ -31,13 +31,13 @@ jobs:
 
     steps:            
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v2
         
       - name: Setup NuGet.exe for use with actions
-        uses: NuGet/setup-nuget@v1.1.1
+        uses: NuGet/setup-nuget@v2.0.0
         
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.7
 
       - name: Generate Self-Signed Certificate
         id: generate_cert
@@ -97,7 +97,7 @@ jobs:
         shell: pwsh
        
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.3.4
         with:
           name: ${{ github.event.inputs.package_name }} Build
           path: ${{ env.PackageOutputRootDir }}\${{ env.PACKAGE_NAME }}.zip
